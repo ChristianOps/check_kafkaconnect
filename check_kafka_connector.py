@@ -154,7 +154,7 @@ class Context(np.Context):
             if metric.value != 'RUNNING':
                 _log.debug('context eval> connector: %s', metric.value)
                 return self.result_cls(np.Critical, metric=metric,
-                                       hint='connector is in a '
+                                       hint='connector is in an '
                                        + metric.value + ' state')
 
         else:
@@ -313,7 +313,7 @@ def parse_args():
     info = argp.add_argument_group('Info')
     info.add_argument('-l', '--list', action='store_true',
                       help='list available connectors')
-    info.add_argument('-v', '--verbose', metavar='<verbosity level>',
+    info.add_argument('-v', '--verbose',
                       action='count', default=0,
                       help='increase output verbosity (up to 3 times)')
     info.add_argument('-V', '--version', action='version',
