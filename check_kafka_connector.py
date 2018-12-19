@@ -16,7 +16,7 @@
 # under the License.
 
 __author__ = 'Christian Nilsson <christian@notably.se>'
-__version__ = '0.2'
+__version__ = '0.3'
 __plugin_name__ = 'check_kafka_connector.py'
 
 try:
@@ -154,7 +154,7 @@ class Context(np.Context):
             if metric.value != 'RUNNING':
                 _log.debug('context eval> connector: %s', metric.value)
                 return self.result_cls(np.Critical, metric=metric,
-                                       hint='connector is in an '
+                                       hint='connector is in a '
                                        + metric.value + ' state')
 
         else:
@@ -177,28 +177,54 @@ class Summary(np.Summary):
 
     def ok(self, results):
 
+        result = dict((i.metric.name, i.metric.value) for i in results)
+        maxval = dict((i.metric.name, i.metric.max) for i in results)
+
+        add_info = ' (connector type: ' + result.get('connector_type')\
+            + ', worker_id: ' + result.get('connector_wrkid') + ')'
+
         if len(results) > 1:
-            result = dict((i.metric.name, i.metric.value) for i in results)
-            msg = result.get('connector_name') + ' ('\
-                + result.get('connector_wrkid') + ') ' + 'is '\
+            msg = result.get('connector_name') + ' is '\
                 + result.get('connector_state').lower()\
-                + ' with ' + str(result.get('running_tasks'))\
-                + ' task(s).'
+                + ' ' + str(result.get('running_tasks'))\
+                + '/' + str(maxval.get('running_tasks')) + ' task(s).'\
+                + add_info
             return msg
+
         else:
             return super(Summary, self).ok(results)
 
     def problem(self, results):
 
+        result = dict((i.metric.name, i.metric.value) for i in results)
+        maxval = dict((i.metric.name, i.metric.max) for i in results)
+
+        add_info = ' (connector type: ' + result.get('connector_type')\
+            + ', worker_id: ' + result.get('connector_wrkid') + ')'
+
         if len(results) > 1:
             if results['connector_state'].state == np.state.Critical:
                 return super(Summary, self).problem(results)
+
             if results['worker_task_count'].state == np.state.Critical or\
                     results['worker_task_count'].state == np.state.Warn:
-                result = dict((i.metric.name, i.metric.value) for i in results)
+
+                msg = result.get('worker_name') + ' has '\
+                    + str(result.get('worker_task_count'))\
+                    + ' running task(s)!' + add_info
+
+                return msg
+
+            if results['running_tasks'].state == np.state.Critical or\
+                    results['running_tasks'].state == np.state.Warn:
+
                 msg = result.get('worker_name') + ' is running '\
-                    + str(result.get('worker_task_count')) + ' task(s)'
-                return (msg)
+                    + str(result.get('running_tasks')) + '/'\
+                    + str(maxval.get('running_tasks')) + ' task(s).'\
+                    + add_info
+
+                return msg
+
             else:
                 result = dict((i.metric.name, i.metric.value) for i in results)
                 return '{0}'.format(results.first_significant)
@@ -313,8 +339,7 @@ def parse_args():
     info = argp.add_argument_group('Info')
     info.add_argument('-l', '--list', action='store_true',
                       help='list available connectors')
-    info.add_argument('-v', '--verbose',
-                      action='count', default=0,
+    info.add_argument('-v', '--verbose', action='count', default=0,
                       help='increase output verbosity (up to 3 times)')
     info.add_argument('-V', '--version', action='version',
                       version=__version__)
